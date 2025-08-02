@@ -7,6 +7,7 @@ Hệ thống quản lý bãi xe thông minh sử dụng Laravel backend và ESP3
 - **RFID Access Control**: Quản lý ra vào bằng thẻ RFID
 - **Tự động tính phí**: Tính phí dựa trên thời gian đỗ xe (5,000đ/giờ)
 - **Hiển thị LCD**: Thông báo trạng thái và hướng dẫn cho người dùng
+- **Audio Feedback**: Buzzer phát âm thanh khi quẹt thẻ và thông báo trạng thái
 - **API RESTful**: Backend Laravel cung cấp API cho ESP32
 - **Real-time Status**: Theo dõi trạng thái bãi xe real-time
 - **Dual Mode**: Chế độ Entry/Exit trên cùng một thiết bị ESP32
@@ -26,6 +27,7 @@ Hệ thống quản lý bãi xe thông minh sử dụng Laravel backend và ESP3
 - 2x Servo Motors (cho barrier)
 - 2x IR Sensors
 - 2x LEDs (Green, Red)
+- 1x Buzzer (Active/Passive)
 - 1x Push Button
 - Breadboard và dây kết nối
 
@@ -120,11 +122,12 @@ Pin 25   →    OUT        →
 Pin 26   →               →    OUT
 ```
 
-#### LEDs và Button
+#### LEDs, Buzzer và Button
 ```
 ESP32    →    Component
 Pin 2    →    Green LED (+) → GND via 220Ω resistor
 Pin 4    →    Red LED (+) → GND via 220Ω resistor
+Pin 5    →    Buzzer (+) → GND
 Pin 27   →    Button → GND (với pull-up internal)
 ```
 
@@ -272,18 +275,24 @@ CREATE TABLE parking_sessions (
 ## 🔄 Workflow Hệ Thống
 
 ### Entry Process
-1. ESP32 đọc thẻ RFID
+1. ESP32 đọc thẻ RFID (1 tiếng beep xác nhận)
 2. Gửi API request đến Laravel `/api/entry`
 3. Laravel kiểm tra thẻ trong database
 4. Nếu valid: Tạo parking session, trả về success
-5. ESP32 nhận response, mở barrier, hiển thị thông báo
+5. ESP32 nhận response, mở barrier, hiển thị thông báo (2 tiếng beep dài - thành công)
 
 ### Exit Process
-1. ESP32 đọc thẻ RFID trong chế độ Exit
+1. ESP32 đọc thẻ RFID trong chế độ Exit (1 tiếng beep xác nhận)
 2. Gửi API request đến Laravel `/api/exit`
 3. Laravel tìm active session, tính thời gian và phí
 4. Cập nhật session với thời gian ra và cost
-5. ESP32 nhận response, hiển thị phí, mở barrier
+5. ESP32 nhận response, hiển thị phí, mở barrier (2 tiếng beep dài - thành công)
+
+### Audio Feedback System
+- **Quẹt thẻ**: 1 tiếng beep ngắn (100ms) - xác nhận đọc thẻ
+- **Thành công**: 2 tiếng beep dài (200ms) - entry/exit granted
+- **Lỗi thẻ**: 3 tiếng beep ngắn (100ms) - thẻ không hợp lệ
+- **Lỗi kết nối**: 5 tiếng beep nhanh (50ms) - không kết nối được server
 
 ## 🚨 Troubleshooting
 
