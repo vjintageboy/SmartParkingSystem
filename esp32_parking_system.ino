@@ -6,11 +6,11 @@
 #include <LiquidCrystal_I2C.h>
 
 // WiFi credentials
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+const char* ssid = "TP-Link_F7E1";
+const char* password = "85826021";
 
 // Laravel API server
-const char* serverURL = "http://192.168.1.100:8000"; // Thay bằng IP của máy Laravel
+const char* serverURL = "http://192.168.0.101:8000"; // Thay bằng IP của máy Laravel
 
 // RFID setup
 #define RST_PIN 22
@@ -32,12 +32,15 @@ LiquidCrystal_I2C lcd(0x27, 16, 2); // Địa chỉ I2C có thể là 0x3F
 #define GREEN_LED_PIN 2
 #define RED_LED_PIN 4
 
+// Buzzer
+#define BUZZER_PIN 5
+
 // Mode selection
 #define MODE_BUTTON_PIN 27
 bool isEntryMode = true; // true = Entry, false = Exit
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   
   // Initialize pins
   pinMode(ENTRY_BARRIER_PIN, OUTPUT);
@@ -46,11 +49,13 @@ void setup() {
   pinMode(EXIT_IR_PIN, INPUT);
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(RED_LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
   pinMode(MODE_BUTTON_PIN, INPUT_PULLUP);
   
   // Close barriers initially
   digitalWrite(ENTRY_BARRIER_PIN, LOW);
   digitalWrite(EXIT_BARRIER_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
   
   // Initialize SPI bus
   SPI.begin();
@@ -107,6 +112,9 @@ void loop() {
     
     Serial.println("RFID Tag: " + rfidTag);
     
+    // Play beep sound when card is detected
+    playBeep(1, 100); // 1 beep, 100ms duration
+    
     if (isEntryMode) {
       handleEntry(rfidTag);
     } else {
@@ -161,17 +169,20 @@ void handleEntry(String rfidTag) {
         // Open entry barrier
         openBarrier(ENTRY_BARRIER_PIN);
         blinkLED(GREEN_LED_PIN, 3);
+        playBeep(2, 200); // Success: 2 beeps
       } else {
         lcd.print("Access Denied");
         lcd.setCursor(0, 1);
         lcd.print(message.substring(0, 16)); // Limit to LCD width
         blinkLED(RED_LED_PIN, 3);
+        playBeep(3, 100); // Error: 3 short beeps
       }
     } else {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Connection Error");
       blinkLED(RED_LED_PIN, 5);
+      playBeep(5, 50); // Connection error: 5 fast beeps
     }
     
     http.end();
@@ -223,6 +234,7 @@ void handleExit(String rfidTag) {
         // Open exit barrier
         openBarrier(EXIT_BARRIER_PIN);
         blinkLED(GREEN_LED_PIN, 3);
+        playBeep(2, 200); // Success: 2 beeps
         
         delay(2000);
         lcd.clear();
@@ -235,12 +247,14 @@ void handleExit(String rfidTag) {
         lcd.setCursor(0, 1);
         lcd.print(message.substring(0, 16));
         blinkLED(RED_LED_PIN, 3);
+        playBeep(3, 100); // Error: 3 short beeps
       }
     } else {
       lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print("Connection Error");
       blinkLED(RED_LED_PIN, 5);
+      playBeep(5, 50); // Connection error: 5 fast beeps
     }
     
     http.end();
@@ -261,6 +275,15 @@ void blinkLED(int ledPin, int times) {
     delay(200);
     digitalWrite(ledPin, LOW);
     delay(200);
+  }
+}
+
+void playBeep(int times, int duration) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(duration);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(100); // Short pause between beeps
   }
 }
 
