@@ -1,4 +1,15 @@
-# Hệ Thống Quản Lý Bãi Xe Thông Minh (Smart Parking System)
+# Hệ## 🚀 Tính Năng Chính
+
+- **RFID Access Control**: Quản lý ra vào bằng thẻ RFID
+- **Tự động tính phí**: Tính phí dựa trên thời gian đỗ xe (5,000đ/giờ)
+- **Hiển thị LCD**: Thông báo trạng thái và hướng dẫn cho người dùng
+- **Audio Feedback**: Buzzer phát âm thanh khi quẹt thẻ và thông báo trạng thái
+- **API RESTful**: Backend Laravel cung cấp API cho ESP32
+- **Real-time Status**: Theo dõi trạng thái bãi xe real-time
+- **Dual Mode**: Chế độ Entry/Exit trên cùng một thiết bị ESP32
+- **🔴 Real-time Slot Monitoring**: Theo dõi từng slot bằng cảm biến IR
+- **📊 Database vs Physical Tracking**: Phân biệt logical và physical occupancy
+- **🎯 Anomaly Detection**: Phát hiện xe đỗ trái phép và chạy trốnản Lý Bãi Xe Thông Minh (Smart Parking System)
 
 Hệ thống quản lý bãi xe thông minh sử dụng Laravel backend và ESP32 với các cảm biến RFID, IR, LCD display và servo motor để tự động hóa việc ra vào bãi xe.
 
@@ -165,19 +176,16 @@ Content-Type: application/json
 }
 ```
 
-**Response Success:**
+**Response:**
 ```json
 {
     "status": "success",
-    "message": "Entry Granted"
-}
-```
-
-**Response Error:**
-```json
-{
-    "status": "error",
-    "message": "Invalid Card"
+    "message": "Entry Granted",
+    "vehicle_info": {
+        "rfid_tag": "A1B2C3D4",
+        "license_plate": "Unknown-C3D4",
+        "is_new_card": false
+    }
 }
 ```
 
@@ -191,13 +199,15 @@ Content-Type: application/json
 }
 ```
 
-**Response Success:**
+**Response:**
 ```json
 {
     "status": "success",
     "message": "Exit Granted",
-    "cost": 10000,
-    "duration_minutes": 125
+    "cost": 5000,
+    "duration_minutes": 65,
+    "free_minutes": 15,
+    "billable_minutes": 50
 }
 ```
 
@@ -215,33 +225,85 @@ GET /api/status
 }
 ```
 
-## 🧪 Testing API
+### 4. 🔴 Real-time Slot Status
+```http
+POST /api/update-slots
+Content-Type: application/json
 
-### Sử dụng Script Test
-```bash
-# Test đầy đủ
-chmod +x test_api.sh
-./test_api.sh
-
-# Test đơn giản với jq formatting
-chmod +x api_test_simple.sh
-./api_test_simple.sh
+{
+    "slots": [1,0,1],
+    "free_slots": 2,
+    "timestamp": 1754198768000
+}
 ```
 
-### Test Manual với cURL
+```http
+GET /api/slot-status
+```
+
+**Response:**
+```json
+{
+    "status": "success",
+    "slots": [1,0,1],
+    "free_slots_realtime": 2,
+    "occupied_slots_realtime": 1,
+    "esp32_online": true,
+    "slot_details": {
+        "slot_1": 1,
+        "slot_2": 0,
+        "slot_3": 1
+    }
+}
+```
+
+### 5. Dashboard Real-time APIs
+```http
+GET /api/parked-vehicles    # Xe đang trong bãi
+GET /api/recent-history     # Lịch sử gần đây
+```
+
+## 🧪 Testing API
+
+### Basic API Testing
 ```bash
-# Check status
-curl -X GET http://127.0.0.1:8000/api/status
+# Test entry
+./test_api.sh
 
-# Vehicle entry
-curl -X POST http://127.0.0.1:8000/api/entry \
-  -H "Content-Type: application/json" \
-  -d '{"rfid_tag":"A1B2C3D4"}'
+# Test complete system
+./test_complete_system.sh
 
-# Vehicle exit
-curl -X POST http://127.0.0.1:8000/api/exit \
-  -H "Content-Type: application/json" \
-  -d '{"rfid_tag":"A1B2C3D4"}'
+# Test real-time dashboard
+./test_realtime_dashboard.sh
+```
+
+### 🔴 Real-time Slot Testing
+```bash
+# Test slot sensor updates
+./test_slot_realtime.sh
+
+# Demo database vs sensor difference
+./demo_database_vs_realtime.sh
+```
+
+### Manual Testing
+```bash
+# Entry test
+curl -X POST http://localhost:8000/api/entry 
+  -H "Content-Type: application/json" 
+  -d '{"rfid_tag": "TEST001"}'
+
+# Exit test  
+curl -X POST http://localhost:8000/api/exit 
+  -H "Content-Type: application/json" 
+  -d '{"rfid_tag": "TEST001"}'
+
+# Slot status test
+curl -X POST http://localhost:8000/api/update-slots 
+  -H "Content-Type: application/json" 
+  -d '{"slots": [1,0,1], "free_slots": 2, "timestamp": 1754198768000}'
+
+curl http://localhost:8000/api/slot-status
 ```
 
 ## 🗄️ Database Structure
